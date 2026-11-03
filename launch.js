@@ -15,6 +15,35 @@ var form = document.getElementById("pick");
 var autoBox = document.getElementById("auto");
 var countEl = document.getElementById("count");
 var ticker = null;
+var cacheInfo = document.getElementById("cache-status");
+var appCache = window.applicationCache || null;
+var cacheReady = false;
+
+function updateCacheState() {
+  if (!appCache) {
+    cacheReady = false;
+    cacheInfo.textContent = "Cache: not supported on this browser";
+    return;
+  }
+  var status = appCache.status;
+  cacheReady = status === appCache.IDLE;
+  if (cacheReady) {
+    cacheInfo.textContent = "Cache: ready";
+  } else if (status === appCache.UPDATEREADY) {
+    cacheInfo.textContent = "Cache updated: close and reopen the browser";
+  } else if (status === appCache.CHECKING || status === appCache.DOWNLOADING || status === appCache.UNCACHED) {
+    cacheInfo.textContent = "Cache: loading - do not start yet";
+  } else {
+    cacheInfo.textContent = "Cache: unavailable - do not start";
+  }
+}
+
+if (appCache) {
+  ["cached", "noupdate", "updateready", "checking", "downloading", "error", "obsolete"].forEach(function (name) {
+    appCache.addEventListener(name, updateCacheState, false);
+  });
+}
+
 
 /* The choice is remembered in localStorage, not by any HTTP cache: cache
    headers decide whether a file is fetched again, never what the page
@@ -24,7 +53,7 @@ function remember() {
   try {
     localStorage.setItem(
       STORE_KEY,
-      JSON.stringify({ payload: picked(), autostart: autoBox.checked }),
+      JSON.stringify({ payload: picked() }),
     );
   } catch (e) {}
 }
@@ -42,7 +71,8 @@ function restore() {
     );
     if (radio) radio.checked = true;
   }
-  if (typeof saved.autostart === "boolean") autoBox.checked = saved.autostart;
+  /* Never restore autostart after a browser or exploit failure. */
+  autoBox.checked = false;
 }
 
 function picked() {
@@ -52,6 +82,8 @@ function picked() {
 
 function start() {
   stopClock();
+  updateCacheState();
+  if (!cacheReady) return;
   location.href = "jb.html?" + TARGET[picked()];
 }
 
@@ -97,4 +129,5 @@ form.addEventListener("change", function (ev) {
 });
 
 restore();
+updateCacheState();
 if (autoBox.checked) startClock();
