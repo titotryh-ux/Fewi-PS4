@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FeWi PS4 - Diagnóstico seguro</title>
+<style>
+html,body{margin:0;background:#0d121a;color:#e5edff;font:15px/1.5 Arial,sans-serif}
+main{max-width:720px;margin:24px auto;padding:20px}
+h1{font-size:25px;color:#75b7ff}h2{font-size:18px}
+p{color:#bdcbdc}button{padding:12px 16px;color:white;background:#12498b;border:1px solid #5aa3e6;border-radius:7px;font-size:16px}
+table{border-collapse:collapse;width:100%;margin-top:20px;table-layout:fixed}th,td{border-bottom:1px solid #334356;text-align:left;padding:10px 4px;overflow-wrap:anywhere}th:first-child{width:32%}
+.ok{color:#8be3a9}.bad{color:#ff9d9d}.warn{color:#ffd88a}
+small{color:#aebed0}code{word-break:break-all}
+</style>
+</head>
+<body>
+<main>
+<h1>FeWi PS4 · Diagnóstico de alojamiento</h1>
+<p><strong>Esta página NO ejecuta ningún exploit, payload ni GoldHEN.</strong> Solo revisa las respuestas HTTP de tus archivos. Úsala sin iniciar el jailbreak.</p>
+<p><strong>Ubicación:</strong> <code id="here">...</code></p>
+<p><strong>Explorador:</strong> <small id="ua">...</small></p>
+<button id="run" type="button">Comprobar archivos</button>
+<p id="status">Pulsa el botón para iniciar la comprobación.</p>
+<table><thead><tr><th>Archivo</th><th>Resultado HTTP</th><th>Tipo de contenido / caché</th></tr></thead><tbody id="results"></tbody></table>
+<h2>Qué significa</h2>
+<p>Si una ruta devuelve 404, falta el archivo. Si un JavaScript no llega con un tipo de contenido admitido, el navegador puede rechazarlo. Para <code>cache.appcache</code>, el tipo esperado es <code>text/cache-manifest</code>. Estas comprobaciones no permiten confirmar la estabilidad del exploit.</p>
+<p><small>Créditos de la implementación original: well0nez/m0zz. El diagnóstico no modifica ni ejecuta sus archivos.</small></p>
+</main>
+<script>
+(function () {
+  var files=["index.html","jb.html","launch.js","jb.js","core.js","afterglow.js","goldhen.bin","patchset-1400.bin","cache.appcache"];
+  var tbody=document.getElementById("results");
+  var status=document.getElementById("status");
+  document.getElementById("here").textContent=location.href.split("?")[0];
+  document.getElementById("ua").textContent=navigator.userAgent;
+  function node(tag,text,cls){var x=document.createElement(tag);x.textContent=text;if(cls)x.className=cls;return x;}
+  function add(name,http,mime,cache,kind){
+    var tr=document.createElement("tr");tr.appendChild(node("td",name));
+    tr.appendChild(node("td",http,kind));
+    tr.appendChild(node("td",(mime||"Tipo no disponible")+(cache?"; cache: "+cache:"")));
+    tbody.appendChild(tr);
+  }
+  function runOne(n){
+    if(n>=files.length){status.textContent="Comprobación finalizada. No se ha ejecutado GoldHEN.";document.getElementById("run").disabled=false;return;}
+    var file=files[n];status.textContent="Comprobando "+file+" ("+(n+1)+"/"+files.length+")...";
+    var xhr=new XMLHttpRequest();
+    xhr.open("HEAD",file,true);
+    xhr.timeout=10000;
+    xhr.onreadystatechange=function(){
+      if(xhr.readyState!==4)return;
+      var mime=xhr.getResponseHeader("Content-Type")||"";
+      var cc=xhr.getResponseHeader("Cache-Control")||"";
+      var ok=(xhr.status>=200&&xhr.status<300);
+      var expected=(file==="cache.appcache"?"text/cache-manifest":(/\.js$/.test(file)?"javascript":""));
+      var typeOk=(!expected||mime.toLowerCase().indexOf(expected)>=0);
+      add(file,String(xhr.status||"sin respuesta"),mime,cc,(ok&&typeOk)?"ok":"bad");
+      runOne(n+1);
+    };
+    xhr.onerror=function(){if(xhr.readyState!==4){add(file,"Error de red","","","bad");runOne(n+1);}};
+    xhr.ontimeout=function(){add(file,"Tiempo agotado","","","bad");runOne(n+1);};
+    try{xhr.send(null);}catch(e){add(file,"Error del navegador","","","bad");runOne(n+1);}
+  }
+  document.getElementById("run").onclick=function(){tbody.textContent="";this.disabled=true;runOne(0);};
+})();
+</script>
+</body>
+</html>
