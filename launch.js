@@ -18,6 +18,8 @@ var ticker = null;
 var cacheInfo = document.getElementById("cache-status");
 var appCache = window.applicationCache || null;
 var cacheReady = false;
+/* The FeWi 13.52/14.00 payloads must never be started on firmware 14.02. */
+var isFW1402 = /PlayStation\s+4[\/ ]14\.02\b/i.test(navigator.userAgent || "");
 
 function updateCacheState() {
   if (!appCache) {
@@ -82,6 +84,10 @@ function picked() {
 
 function start() {
   stopClock();
+  if (isFW1402) {
+    countEl.textContent = "Firmware 14.02: usa WebKitty en el enlace inferior.";
+    return;
+  }
   updateCacheState();
   if (!cacheReady) return;
   location.href = "jb.html?" + TARGET[picked()];
@@ -129,5 +135,9 @@ form.addEventListener("change", function (ev) {
 });
 
 restore();
+if (isFW1402) {
+  autoBox.checked = false;
+  countEl.textContent = "Firmware 14.02: utiliza el enlace WebKitty de abajo.";
+}
 updateCacheState();
 if (autoBox.checked) startClock();
